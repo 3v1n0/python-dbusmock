@@ -365,11 +365,7 @@ class DBusMockObject(dbus.service.Object):  # pylint: disable=too-many-instance-
         name: Name of the method
         method: A method decorated using @dbus.service.method
         '''
-        # pylint: disable=protected-access
-        self.AddMethod(interface, name,
-                       method._dbus_in_signature,
-                       method._dbus_out_signature,
-                       method)
+        self.AddMethod(interface, name, None, None, method)
 
     @dbus.service.method(MOCK_IFACE,
                          in_signature='sssss',
