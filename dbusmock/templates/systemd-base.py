@@ -11,6 +11,7 @@ __author__ = 'Jonas Ådahl'
 __copyright__ = '(c) 2021 Red Hat'
 
 from gi.repository import GLib
+import dbus
 
 from dbusmock import MOCK_IFACE, mockobject
 
@@ -28,32 +29,13 @@ def load_base(mock, _parameters):
     mock.next_job_id = 1
     mock.units = {}
 
-    mock.AddMethod(MAIN_IFACE,
-                   'StartUnit',
-                   'ss', 'o',
-                   'ret = self.StartUnit(self, *args)')
-    mock.AddMethod(MAIN_IFACE,
-                   'StartTransientUnit',
-                   'ssa(sv)a(sa(sv))', 'o',
-                   'ret = self.StartTransientUnit(self, *args)')
-    mock.AddMethod(MAIN_IFACE,
-                   'StopUnit',
-                   'ss', 'o',
-                   'ret = self.StopUnit(self, *args)')
-    mock.AddMethod(MAIN_IFACE,
-                   'GetUnit',
-                   's', 'o',
-                   'ret = self.GetUnit(self, *args)')
+    mock.AddServiceMethod(MAIN_IFACE, 'StartUnit', StartUnit)
+    mock.AddServiceMethod(MAIN_IFACE, 'StartTransientUnit', StartTransientUnit)
+    mock.AddServiceMethod(MAIN_IFACE, 'StopUnit', StopUnit)
+    mock.AddServiceMethod(MAIN_IFACE, 'GetUnit', GetUnit)
     mock.AddProperties(MAIN_IFACE, {'Version': 'v246'})
 
-    mock.StartUnit = StartUnit
-    mock.StartTransientUnit = StartTransientUnit
-    mock.StopUnit = StopUnit
-    mock.GetUnit = GetUnit
-
-    mock.AddMethod(MOCK_IFACE, 'AddMockUnit', 's', '', 'self.AddMockUnit(self, *args)')
-
-    mock.AddMockUnit = AddMockUnit
+    mock.AddServiceMethod(MOCK_IFACE, 'AddMockUnit', AddMockUnit)
 
 
 def escape_unit_name(name):
@@ -68,6 +50,7 @@ def emit_job_new_remove(self, job_id, job_path, name):
                     [job_id, job_path, name, 'done'])
 
 
+@dbus.service.method(MAIN_IFACE, in_signature='ss', out_signature='o')
 def StartUnit(self, name, _mode):
     job_id = self.next_job_id
     self.next_job_id += 1
@@ -82,6 +65,7 @@ def StartUnit(self, name, _mode):
     return job_path
 
 
+@dbus.service.method(MAIN_IFACE, in_signature='ssa(sv)a(sa(sv))', out_signature='o')
 def StartTransientUnit(self, name, _mode, _properties, _aux):
     job_id = self.next_job_id
     self.next_job_id += 1
@@ -92,6 +76,7 @@ def StartTransientUnit(self, name, _mode, _properties, _aux):
     return job_path
 
 
+@dbus.service.method(MAIN_IFACE, in_signature='ss', out_signature='o')
 def StopUnit(self, name, _mode):
     job_id = self.next_job_id
     self.next_job_id += 1
@@ -105,11 +90,13 @@ def StopUnit(self, name, _mode):
     return job_path
 
 
+@dbus.service.method(MAIN_IFACE, in_signature='s', out_signature='o')
 def GetUnit(self, name):
     unit_path = self.units[str(name)]
     return unit_path
 
 
+@dbus.service.method(MOCK_IFACE, in_signature='s')
 def AddMockUnit(self, name):
     unit_path = PATH_PREFIX + '/unit/%s' % (escape_unit_name(name))
     self.units[str(name)] = unit_path
