@@ -10,7 +10,6 @@
 __author__ = 'Jonas Ådahl'
 __copyright__ = '(c) 2021 Red Hat'
 
-from gi.repository import GLib
 import dbus
 
 from dbusmock import MOCK_IFACE, mockobject
@@ -50,44 +49,53 @@ def emit_job_new_remove(self, job_id, job_path, name):
                     [job_id, job_path, name, 'done'])
 
 
-@dbus.service.method(MAIN_IFACE, in_signature='ss', out_signature='o')
-def StartUnit(self, name, _mode):
+@dbus.service.method(MAIN_IFACE, in_signature='ss', out_signature='o',
+                     async_callbacks=('ok_cb', 'err_cb'))
+def StartUnit(self, name, _mode, ok_cb, err_cb):
     job_id = self.next_job_id
     self.next_job_id += 1
 
     job_path = PATH_PREFIX + '/Job/{}'.format(job_id)
-    GLib.idle_add(lambda: emit_job_new_remove(self, job_id, job_path, name))
 
-    unit_path = self.units[str(name)]
+    try:
+        unit_path = self.units[str(name)]
+    except KeyError as e:
+        err_cb(e)
     unit = mockobject.objects[unit_path]
     unit.UpdateProperties(UNIT_IFACE, {'ActiveState': 'active'})
 
-    return job_path
+    ok_cb(job_path)
+    emit_job_new_remove(self, job_id, job_path, name)
 
 
-@dbus.service.method(MAIN_IFACE, in_signature='ssa(sv)a(sa(sv))', out_signature='o')
-def StartTransientUnit(self, name, _mode, _properties, _aux):
+@dbus.service.method(MAIN_IFACE, in_signature='ssa(sv)a(sa(sv))', out_signature='o',
+                     async_callbacks=('ok_cb', '_err_cb'))
+def StartTransientUnit(self, name, _mode, _properties, _aux, ok_cb, _err_cb):
     job_id = self.next_job_id
     self.next_job_id += 1
 
     job_path = PATH_PREFIX + '/Job/%d' % (job_id)
-    GLib.idle_add(lambda: emit_job_new_remove(self, job_id, job_path, name))
+    ok_cb(job_path)
+    emit_job_new_remove(self, job_id, job_path, name)
 
-    return job_path
 
-
-@dbus.service.method(MAIN_IFACE, in_signature='ss', out_signature='o')
-def StopUnit(self, name, _mode):
+@dbus.service.method(MAIN_IFACE, in_signature='ss', out_signature='o',
+                     async_callbacks=('ok_cb', 'err_cb'))
+def StopUnit(self, name, _mode, ok_cb, err_cb):
     job_id = self.next_job_id
     self.next_job_id += 1
 
     job_path = PATH_PREFIX + '/Job/%d' % (job_id)
-    GLib.idle_add(lambda: emit_job_new_remove(self, job_id, job_path, name))
 
-    unit_path = self.units[str(name)]
+    try:
+        unit_path = self.units[str(name)]
+    except KeyError as e:
+        err_cb(e)
     unit = mockobject.objects[unit_path]
     unit.UpdateProperties(UNIT_IFACE, {'ActiveState': 'inactive'})
-    return job_path
+
+    ok_cb(job_path)
+    emit_job_new_remove(self, job_id, job_path, name)
 
 
 @dbus.service.method(MAIN_IFACE, in_signature='s', out_signature='o')
