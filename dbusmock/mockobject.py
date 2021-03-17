@@ -356,6 +356,21 @@ class DBusMockObject(dbus.service.Object):  # pylint: disable=too-many-instance-
 
         objects[self.path] = self
 
+    def AddServiceMethod(self, interface, name, method) -> None:
+        '''Add service decorated method
+
+        interface: D-Bus interface to add this to. For convenience you can
+                   specify '' here to add the method to the object's main
+                   interface (as specified on construction).
+        name: Name of the method
+        method: A method decorated using @dbus.service.method
+        '''
+        # pylint: disable=protected-access
+        self.AddMethod(interface, name,
+                       method._dbus_in_signature,
+                       method._dbus_out_signature,
+                       method)
+
     @dbus.service.method(MOCK_IFACE,
                          in_signature='sssss',
                          out_signature='')
